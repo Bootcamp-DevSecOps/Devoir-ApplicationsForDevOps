@@ -24,10 +24,20 @@ Sur Ubuntu/Debian :
 
 ```bash
 sudo apt update
-sudo apt install mysql-server php php-mysql nginx
+sudo apt install mysql-server php-cli php-mysql nginx
 ```
 
-(Sur une autre distribution ou sur macOS/Windows, installez les équivalents : MySQL ou MariaDB, PHP avec l'extension `pdo_mysql`, et Nginx.)
+⚠️ **Important : n'installez pas le paquet `php` générique.** Sur Ubuntu/Debian, celui-ci entraîne l'installation d'Apache comme dépendance (`libapache2-mod-php`). Or Apache et Nginx écoutent tous les deux sur le **port 80** par défaut : s'ils sont installés tous les deux, l'un empêchera l'autre de démarrer. La commande ci-dessus (`php-cli` + `php-mysql`) installe uniquement ce dont on a besoin — le serveur de développement PHP intégré (utilisé à l'étape 2) — sans toucher à Apache.
+
+Si Apache a déjà été installé par erreur (par exemple après un `apt install php`), désinstallez-le avant de continuer :
+
+```bash
+sudo systemctl stop apache2
+sudo systemctl disable apache2
+sudo apt remove --purge apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php*
+```
+
+(Sur une autre distribution ou sur macOS/Windows, installez les équivalents : MySQL ou MariaDB, PHP en ligne de commande avec l'extension `pdo_mysql`, et Nginx — en veillant à ne pas avoir Apache actif sur le port 80 en même temps.)
 
 ## Étape 1 — Préparer la base de données (Tier 3)
 
@@ -113,6 +123,7 @@ C'est tout — aucune autre modification n'est nécessaire côté Nginx.
 
 - **"Backend inaccessible"** : vérifiez que `php -S 0.0.0.0:8000` tourne toujours dans son terminal (il ne doit pas avoir été fermé ou avoir planté).
 - **Erreur de connexion à la base** dans la réponse de `/api/health` : vérifiez que MySQL est démarré (`sudo service mysql status`) et que le script `db/init.sql` a bien été exécuté sans erreur.
+- **Nginx refuse de démarrer / erreur "Address already in use" sur le port 80** : un autre serveur web (souvent Apache) occupe déjà le port 80. Vérifiez avec `sudo ss -tlnp | grep :80` quel processus l'utilise, puis arrêtez-le (`sudo systemctl stop apache2` si c'est Apache) avant de relancer Nginx.
 - **La page par défaut de Nginx s'affiche toujours** : vérifiez que vous avez bien copié le fichier au bon endroit (`sudo nginx -T | grep root` pour confirmer le chemin), et videz le cache de votre navigateur (Ctrl+Shift+R).
 - **Erreur d'accès refusé MySQL** : si vous avez déjà un utilisateur `biblio_user` d'une tentative précédente avec un autre mot de passe, supprimez-le avant de relancer le script :
   ```bash
