@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catalogue de Livres</title>
+  <style>
+    body { font-family: sans-serif; max-width: 550px; margin: 40px auto; padding: 0 16px; }
+    form { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    input { padding: 8px; flex: 1; min-width: 100px; }
+    input#annee { max-width: 100px; flex: none; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eee; }
+    li span { flex: 1; }
+    button { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>📚 Catalogue de Livres</h1>
+  <p id="status">Connexion au backend...</p>
+
+  <form id="form">
+    <input id="titre" placeholder="Titre" required />
+    <input id="auteur" placeholder="Auteur" required />
+    <input id="annee" type="number" placeholder="Année" />
+    <button type="submit">Ajouter</button>
+  </form>
+
+  <ul id="liste"></ul>
+
+  <script>
+    // Adresse du backend (Tier 2). À modifier si le backend tourne sur une autre machine/port.
+    const API_URL = 'http://localhost:8000/api';
+
+    const statusEl = document.getElementById('status');
+    const listeEl = document.getElementById('liste');
+    const formEl = document.getElementById('form');
+
+    // Vérification de la communication frontend -> backend -> base de données
+    fetch(`${API_URL}/health`)
+      .then((r) => r.json())
+      .then((d) => { statusEl.textContent = '✅ ' + d.message; })
+      .catch(() => { statusEl.textContent = "❌ Backend inaccessible. Vérifiez qu'il est démarré sur le port 8000."; });
+
+    function chargerLivres() {
+      fetch(`${API_URL}/livres`)
+        .then((r) => r.json())
+        .then((livres) => {
+          listeEl.innerHTML = '';
+          livres.forEach((l) => {
+            const li = document.createElement('li');
+            const span = document.createElement('span');
+            span.textContent = `${l.titre} — ${l.auteur}` + (l.annee ? ` (${l.annee})` : '');
+            const btn = document.createElement('button');
+            btn.textContent = '🗑️';
+            btn.onclick = () => fetch(`${API_URL}/livres/${l.id}`, { method: 'DELETE' }).then(chargerLivres);
+            li.appendChild(span);
+            li.appendChild(btn);
+            listeEl.appendChild(li);
+          });
+        });
+    }
+
+    formEl.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const titre = document.getElementById('titre').value;
+      const auteur = document.getElementById('auteur').value;
+      const annee = document.getElementById('annee').value;
+      fetch(`${API_URL}/livres`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titre, auteur, annee: annee ? parseInt(annee, 10) : null })
+      }).then(() => {
+        formEl.reset();
+        chargerLivres();
+      });
+    });
+
+    chargerLivres();
+  </script>
+</body>
+</html>
